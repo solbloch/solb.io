@@ -20,3 +20,4 @@ pom.xml.asc
 /resources/uploads/
 /resources/public/feed.xml
 /.clj-kondo/.cache
+/.lsp/.cache
