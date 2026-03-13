@@ -15,3 +15,4 @@ pom.xml.asc
 /src/backend/keys/*
 /src/templates/tracking.clj
 /resources
+/.clj-kondo/.cache
