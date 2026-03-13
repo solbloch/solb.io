@@ -6,6 +6,7 @@
             [ring.util.anti-forgery :as anti]
             [clojure.string :as str]
             [backend.blog :as blog]
+            [backend.users :as users]
             [templates.layout :as layout]
             [ring.util.response :as resp]))
 
@@ -14,12 +15,45 @@
 (defn- format-date [date-str]
   (subs date-str 0 10))
 
+(defn- post-action-link [href label]
+  [:a.toolbar-reload {:href href}
+   label])
+
+(defn- strip-leading-empty-html [content]
+  (loop [trimmed (str/triml content)]
+    (let [next (-> trimmed
+                   (str/replace-first #"(?is)\A(?:<br\s*/?>|&nbsp;|\s)+" "")
+                   (str/replace-first
+                    #"(?is)\A<(?:div|p)[^>]*>\s*(?:<br\s*/?>|&nbsp;|\s)*</(?:div|p)>\s*"
+                    ""))]
+      (if (= next trimmed)
+        trimmed
+        (recur (str/triml next))))))
+
 (defn- convo-snippet [content]
-  (let [messages (re-seq #"(?s)<div class=\"convo-message[^\"]*\">.*?</div>.*?</div>.*?</div>" content)]
-    (when (seq messages)
-      (str "<div class=\"convo-transcript\">"
-           (str/join "" (take 2 messages))
-           "</div>"))))
+  (let [transcript-start (str/index-of content "<div class=\"convo-transcript\">")
+        intro-html (when transcript-start
+                     (subs content 0 transcript-start))
+        intro-text (some-> intro-html
+                           strip-leading-empty-html
+                           (str/replace #"<[^>]+>" "")
+                           (str/replace #"\s+" " ")
+                           str/trim)
+        intro-preview (when (seq intro-text)
+                        (str "<p>"
+                             (if (> (count intro-text) 220)
+                               (str (subs intro-text 0 220) "…")
+                               intro-text)
+                             "</p>"))
+        transcript-html (if transcript-start
+                          (subs content transcript-start)
+                          content)
+        messages (re-seq #"(?s)<div class=\"convo-message[^\"]*\">.*?</div>.*?</div>.*?</div>" transcript-html)]
+    (str (or intro-preview "")
+         (when (seq messages)
+           (str "<div class=\"convo-transcript\">"
+                (str/join "" (take 2 messages))
+                "</div>")))))
 
 (defn- post-snippet [content]
   (if (str/includes? content "convo-transcript")
@@ -142,6 +176,9 @@
         :request request}
        [:div.blog
         [:h2 (:title entry)]
+        (when (users/admin-logged-in? request)
+          [:div.editor-toolbar.post-toolbar
+           (post-action-link (str "/blog/" (:link entry) "/edit") "Edit")])
         [:div.datetagsflex
          [:div.tags
           (for [tag (str/split (:tags entry) #" ")]
@@ -166,6 +203,8 @@
       [:button.toolbar-reload {:onclick "event.preventDefault(); saveAndReload()"} "Save & Reload"]
       [:button.toolbar-reload {:onclick "event.preventDefault(); triggerImageUpload()"} "Upload Image"]
       [:button.toolbar-reload {:onclick "event.preventDefault(); resizeSelectedImage()"} "Resize Image"]
+      (when (:status entry)
+        (post-action-link (str "/blog/" (:link entry)) "View Live Post"))
       [:form {:enctype "multipart/form-data"
               :action  "/enlive"
               :method  "post"
@@ -182,7 +221,18 @@
        [:div.date (format-date (:date entry))]]
       [:div#post-forward.forward {:contenteditable "true"}
        (:forward entry)]
-      [:div#editor]
+        [:div#editor]
+        [:div#convo-editor-shell {:style "display:none"}
+         [:div.editor-section
+          [:div.editor-section-label "Intro"]
+          [:div#editor-intro]]
+         [:div.editor-section
+          [:div.editor-section-label "Transcript"]
+          [:div#editor-transcript.raw-convo-editor {:contenteditable "true"
+                        :spellcheck "false"}]]
+         [:div.editor-section
+          [:div.editor-section-label "Outro"]
+          [:div#editor-outro]]]
       [:div#initial-content {:style "display:none"} (raw (:content entry))]
       [:form#save-form {:enctype "multipart/form-data"
                         :action  "/editor"

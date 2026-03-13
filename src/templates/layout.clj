@@ -103,15 +103,27 @@
                    stack
                    (conj out text-piece))))))))
 
+(defn- convo-snippet [content]
+  (let [transcript-start (str/index-of content "<div class=\"convo-transcript\">")
+        intro-html (when transcript-start
+                     (-> (subs content 0 transcript-start)
+                         strip-leading-empty-html
+                         (truncate-html 220)))
+        transcript-html (if transcript-start
+                          (subs content transcript-start)
+                          content)
+        messages (re-seq #"(?s)<div class=\"convo-message[^\"]*\">.*?</div>.*?</div>.*?</div>" transcript-html)
+        intro-preview (when (seq (str/trim (str/replace (or intro-html "") #"<[^>]+>" "")))
+                        intro-html)
+        transcript-preview (when (seq messages)
+                             (str "<div class=\"convo-transcript\">"
+                                  (str/join "" (take 2 messages))
+                                  "</div>"))]
+    (StringBuilder. (str (or intro-preview "") (or transcript-preview "")))))
+
 (defn- post-snippet [content]
   (if (str/includes? content "convo-transcript")
-    (let [messages (re-seq #"(?s)<div class=\"convo-message[^\"]*\">.*?</div>.*?</div>.*?</div>" content)]
-      (StringBuilder.
-        (if (seq messages)
-          (str "<div class=\"convo-transcript\">"
-               (str/join "" (take 2 messages))
-               "</div>")
-          "")))
+    (convo-snippet content)
     (let [snippet (-> content
                       strip-leading-empty-html
                       (truncate-html 350))]

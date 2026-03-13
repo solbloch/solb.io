@@ -1,43 +1,89 @@
 // Quill and DOM are both ready since this script loads last in the body
 
-var quill = new Quill('#editor', {
-    theme: 'snow',
-    modules: {
-        toolbar: [
-            [{ header: [2, 3, false] }],
-            ['bold', 'italic'],
-            ['code-block'],
-            ['link'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['blockquote'],
-            ['clean']
-        ]
-    }
-});
+var quillToolbarOptions = [
+    [{ header: [2, 3, false] }],
+    ['bold', 'italic'],
+    ['code-block'],
+    ['link'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['blockquote'],
+    ['clean']
+];
 
-// Load existing post HTML into Quill
+function createQuill(selector) {
+    return new Quill(selector, {
+        theme: 'snow',
+        modules: {
+            toolbar: quillToolbarOptions
+        }
+    });
+}
+
+function splitConvoContent(html) {
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    var transcript = wrapper.querySelector('.convo-transcript');
+    if (!transcript) {
+        return null;
+    }
+
+    var intro = document.createElement('div');
+    var outro = document.createElement('div');
+    var beforeTranscript = true;
+    var child = wrapper.firstChild;
+
+    while (child) {
+        var next = child.nextSibling;
+        if (child === transcript) {
+            beforeTranscript = false;
+        } else if (beforeTranscript) {
+            intro.appendChild(child);
+        } else {
+            outro.appendChild(child);
+        }
+        child = next;
+    }
+
+    return {
+        intro: intro.innerHTML,
+        transcript: transcript.outerHTML,
+        outro: outro.innerHTML
+    };
+}
+
 var initial = document.getElementById('initial-content');
 var editorHost = document.getElementById('editor');
-var useRawConvoEditor = false;
-var rawEditor = null;
+var convoEditorShell = document.getElementById('convo-editor-shell');
+var transcriptEditor = document.getElementById('editor-transcript');
+var singleQuill = createQuill('#editor');
+var introQuill = null;
+var outroQuill = null;
+var useSegmentedConvoEditor = false;
+var activeEditorSurface = 'single';
+
+function setActiveEditorSurface(surface) {
+    activeEditorSurface = surface;
+}
 
 if (initial && initial.innerHTML.trim()) {
-    useRawConvoEditor = initial.innerHTML.indexOf('convo-transcript') !== -1;
-    if (useRawConvoEditor) {
-        var toolbar = editorHost.previousElementSibling;
-        if (toolbar && toolbar.classList && toolbar.classList.contains('ql-toolbar')) {
-            toolbar.style.display = 'none';
+    var convoParts = splitConvoContent(initial.innerHTML);
+    useSegmentedConvoEditor = !!convoParts;
+
+    if (useSegmentedConvoEditor) {
+        var singleToolbar = editorHost.previousElementSibling;
+        if (singleToolbar && singleToolbar.classList && singleToolbar.classList.contains('ql-toolbar')) {
+            singleToolbar.style.display = 'none';
         }
         editorHost.style.display = 'none';
-        rawEditor = document.createElement('div');
-        rawEditor.id = 'raw-convo-editor';
-        rawEditor.className = 'raw-convo-editor content';
-        rawEditor.setAttribute('contenteditable', 'true');
-        rawEditor.setAttribute('spellcheck', 'false');
-        rawEditor.innerHTML = initial.innerHTML;
-        editorHost.parentNode.insertBefore(rawEditor, editorHost.nextSibling);
+        convoEditorShell.style.display = 'block';
+        introQuill = createQuill('#editor-intro');
+        outroQuill = createQuill('#editor-outro');
+        introQuill.root.innerHTML = convoParts.intro;
+        outroQuill.root.innerHTML = convoParts.outro;
+        transcriptEditor.innerHTML = convoParts.transcript;
+        setActiveEditorSurface('transcript');
     } else {
-        quill.root.innerHTML = initial.innerHTML;
+        singleQuill.root.innerHTML = initial.innerHTML;
     }
 }
 
@@ -77,7 +123,13 @@ function setStatus(msg, cls) {
 }
 
 function collectAll() {
-    document.querySelector('input[name="content"]').value  = useRawConvoEditor && rawEditor ? rawEditor.innerHTML : quill.root.innerHTML;
+    var contentValue;
+    if (useSegmentedConvoEditor) {
+        contentValue = introQuill.root.innerHTML + transcriptEditor.innerHTML + outroQuill.root.innerHTML;
+    } else {
+        contentValue = singleQuill.root.innerHTML;
+    }
+    document.querySelector('input[name="content"]').value  = contentValue;
     document.querySelector('input[name="title"]').value    = document.getElementById('post-title').innerText.trim();
     document.querySelector('input[name="tags"]').value     = document.getElementById('post-tags').innerText.trim();
     document.querySelector('input[name="forward"]').value  = document.getElementById('post-forward').innerText.trim();
@@ -112,7 +164,7 @@ function scheduleSave() {
 
 function insertImageRawEditor(url) {
     var html = '<p><img src="' + url + '" alt="Image" style="width:60%;height:auto;" /></p>';
-    rawEditor.focus();
+    transcriptEditor.focus();
     var sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
         var range = sel.getRangeAt(0);
@@ -133,20 +185,15 @@ function insertImageRawEditor(url) {
             sel.addRange(range);
         }
     } else {
-        rawEditor.insertAdjacentHTML('beforeend', html);
+        transcriptEditor.insertAdjacentHTML('beforeend', html);
     }
-    var images = rawEditor.querySelectorAll('img');
+    var images = transcriptEditor.querySelectorAll('img');
     if (images.length) {
         setActiveImage(images[images.length - 1]);
     }
 }
 
-function insertImageIntoEditor(url) {
-    if (useRawConvoEditor && rawEditor) {
-        insertImageRawEditor(url);
-        scheduleSave();
-        return;
-    }
+function insertImageIntoQuill(quill, url) {
     var range = quill.getSelection(true);
     var index = range ? range.index : quill.getLength();
     quill.insertEmbed(index, 'image', url, 'user');
@@ -158,6 +205,21 @@ function insertImageIntoEditor(url) {
         setActiveImage(inserted);
     }
     quill.setSelection(index + 1, 0, 'user');
+}
+
+function insertImageIntoEditor(url) {
+    if (useSegmentedConvoEditor && activeEditorSurface === 'transcript') {
+        insertImageRawEditor(url);
+        scheduleSave();
+        return;
+    }
+
+    var targetQuill = singleQuill;
+    if (useSegmentedConvoEditor) {
+        targetQuill = activeEditorSurface === 'outro' ? outroQuill : introQuill;
+    }
+
+    insertImageIntoQuill(targetQuill, url);
     scheduleSave();
 }
 
@@ -223,12 +285,40 @@ function saveAndReload() {
 }
 
 // ── Change listeners ────────────────────────────────────────
-if (useRawConvoEditor && rawEditor) {
-    bindImageSelection(rawEditor);
-    rawEditor.addEventListener('input', scheduleSave);
+if (useSegmentedConvoEditor) {
+    bindImageSelection(transcriptEditor);
+    bindImageSelection(introQuill.root);
+    bindImageSelection(outroQuill.root);
+    transcriptEditor.addEventListener('focus', function () {
+        setActiveEditorSurface('transcript');
+    });
+    transcriptEditor.addEventListener('click', function () {
+        setActiveEditorSurface('transcript');
+    });
+    transcriptEditor.addEventListener('input', scheduleSave);
+    introQuill.root.addEventListener('focus', function () {
+        setActiveEditorSurface('intro');
+    });
+    introQuill.root.addEventListener('click', function () {
+        setActiveEditorSurface('intro');
+    });
+    outroQuill.root.addEventListener('focus', function () {
+        setActiveEditorSurface('outro');
+    });
+    outroQuill.root.addEventListener('click', function () {
+        setActiveEditorSurface('outro');
+    });
+    introQuill.on('text-change', scheduleSave);
+    outroQuill.on('text-change', scheduleSave);
 } else {
-    bindImageSelection(quill.root);
-    quill.on('text-change', scheduleSave);
+    bindImageSelection(singleQuill.root);
+    singleQuill.root.addEventListener('focus', function () {
+        setActiveEditorSurface('single');
+    });
+    singleQuill.root.addEventListener('click', function () {
+        setActiveEditorSurface('single');
+    });
+    singleQuill.on('text-change', scheduleSave);
 }
 
 ['post-title', 'post-tags', 'post-forward'].forEach(function(id) {

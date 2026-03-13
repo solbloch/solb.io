@@ -856,6 +856,28 @@ h2 {
     max-width: 720px;
     margin: 0 auto;
 }
+.post-toolbar {
+    position: static;
+    width: 70%;
+    justify-content: flex-end;
+    padding: 0 0 12px;
+    border-bottom: none;
+}
+#convo-editor-shell {
+    margin-top: 20px;
+}
+.editor-section {
+    margin-bottom: 24px;
+}
+.editor-section:last-child {
+    margin-bottom: 0;
+}
+.editor-section-label {
+    font-family: "Jacques Francois";
+    font-size: 13px;
+    color: rgba(0,0,0,.5);
+    margin-bottom: 8px;
+}
 .save-status {
     font-family: "Jacques Francois";
     font-size: 13px;
