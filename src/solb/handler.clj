@@ -28,6 +28,7 @@
   (GET "/su-cal" [:as req] (layout/su-cal req))
   (GET "/su-cal-gen" [:as req] (cal/get-ics-from-req req))
   (POST "/editor" [:as req] (users/sol? req (backend.blog/edit! req)))
+  (POST "/editor/upload-image" [:as req] (users/sol? req (utils/editor-image-upload req)))
   (POST "/autosave" [:as req] (users/sol? req (backend.blog/autosave! req)))
   (POST "/delete" [:as req] (users/sol? req (backend.blog/delete! req)))
   (POST "/enlive" [:as req] (users/sol? req (backend.blog/enliven req)))

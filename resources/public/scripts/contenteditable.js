@@ -43,6 +43,32 @@ if (initial && initial.innerHTML.trim()) {
 
 // ── Save state ──────────────────────────────────────────────
 var saveTimer = null;
+var activeImageEl = null;
+
+function clearActiveImageSelection() {
+    if (activeImageEl) {
+        activeImageEl.classList.remove('editor-image-selected');
+        activeImageEl = null;
+    }
+}
+
+function setActiveImage(imageEl) {
+    clearActiveImageSelection();
+    if (!imageEl) return;
+    activeImageEl = imageEl;
+    activeImageEl.classList.add('editor-image-selected');
+}
+
+function bindImageSelection(container) {
+    if (!container) return;
+    container.addEventListener('click', function (e) {
+        if (e.target && e.target.tagName === 'IMG') {
+            setActiveImage(e.target);
+        } else {
+            clearActiveImageSelection();
+        }
+    });
+}
 
 function setStatus(msg, cls) {
     var el = document.getElementById('save-status');
@@ -84,6 +110,106 @@ function scheduleSave() {
     saveTimer = setTimeout(doSave, 2000);
 }
 
+function insertImageRawEditor(url) {
+    var html = '<p><img src="' + url + '" alt="Image" style="width:60%;height:auto;" /></p>';
+    rawEditor.focus();
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+        var range = sel.getRangeAt(0);
+        range.deleteContents();
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        var frag = document.createDocumentFragment();
+        var node;
+        var lastNode = null;
+        while ((node = wrapper.firstChild)) {
+            lastNode = frag.appendChild(node);
+        }
+        range.insertNode(frag);
+        if (lastNode) {
+            range.setStartAfter(lastNode);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    } else {
+        rawEditor.insertAdjacentHTML('beforeend', html);
+    }
+    var images = rawEditor.querySelectorAll('img');
+    if (images.length) {
+        setActiveImage(images[images.length - 1]);
+    }
+}
+
+function insertImageIntoEditor(url) {
+    if (useRawConvoEditor && rawEditor) {
+        insertImageRawEditor(url);
+        scheduleSave();
+        return;
+    }
+    var range = quill.getSelection(true);
+    var index = range ? range.index : quill.getLength();
+    quill.insertEmbed(index, 'image', url, 'user');
+    var images = quill.root.querySelectorAll('img');
+    if (images.length) {
+        var inserted = images[images.length - 1];
+        inserted.style.width = '60%';
+        inserted.style.height = 'auto';
+        setActiveImage(inserted);
+    }
+    quill.setSelection(index + 1, 0, 'user');
+    scheduleSave();
+}
+
+function resizeSelectedImage() {
+    if (!activeImageEl) {
+        setStatus('click an image first', 'unsaved');
+        return;
+    }
+    var current = activeImageEl.style.width || '60%';
+    var next = window.prompt('Image width (e.g. 320px, 60%, auto)', current);
+    if (next === null) return;
+    var width = next.trim();
+    if (!width || width.toLowerCase() === 'auto') {
+        activeImageEl.style.width = '';
+    } else {
+        activeImageEl.style.width = width;
+    }
+    activeImageEl.style.height = 'auto';
+    scheduleSave();
+}
+
+function triggerImageUpload() {
+    var picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'image/*';
+    picker.onchange = function () {
+        if (!picker.files || !picker.files.length) return;
+        var file = picker.files[0];
+        var formData = new FormData();
+        var tokenInput = document.querySelector('input[name="__anti-forgery-token"]');
+        if (tokenInput) {
+            formData.append('__anti-forgery-token', tokenInput.value);
+        }
+        formData.append('image', file);
+        setStatus('uploading image...', 'saving');
+        fetch('/editor/upload-image', { method: 'POST', body: formData })
+            .then(function (res) {
+                if (!res.ok) throw new Error('upload failed');
+                return res.json();
+            })
+            .then(function (payload) {
+                if (!payload || !payload.url) throw new Error('missing url');
+                insertImageIntoEditor(payload.url);
+                setStatus('saved');
+            })
+            .catch(function () {
+                setStatus('image upload failed', 'unsaved');
+            });
+    };
+    picker.click();
+}
+
 // ── Public actions wired to toolbar buttons ─────────────────
 function manualSave() {
     clearTimeout(saveTimer);
@@ -98,8 +224,10 @@ function saveAndReload() {
 
 // ── Change listeners ────────────────────────────────────────
 if (useRawConvoEditor && rawEditor) {
+    bindImageSelection(rawEditor);
     rawEditor.addEventListener('input', scheduleSave);
 } else {
+    bindImageSelection(quill.root);
     quill.on('text-change', scheduleSave);
 }
 

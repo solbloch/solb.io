@@ -164,6 +164,8 @@
       [:span#save-status.save-status "saved"]
       [:button.toolbar-save {:onclick "event.preventDefault(); manualSave()"} "Save"]
       [:button.toolbar-reload {:onclick "event.preventDefault(); saveAndReload()"} "Save & Reload"]
+      [:button.toolbar-reload {:onclick "event.preventDefault(); triggerImageUpload()"} "Upload Image"]
+      [:button.toolbar-reload {:onclick "event.preventDefault(); resizeSelectedImage()"} "Resize Image"]
       [:form {:enctype "multipart/form-data"
               :action  "/enlive"
               :method  "post"
