@@ -14,5 +14,9 @@ pom.xml.asc
 /src/backend/keys
 /src/backend/keys/*
 /src/templates/tracking.clj
-/resources
+/resources/posts.edn
+/resources/shortened.edn
+/resources/users.edn
+/resources/uploads/
+/resources/public/feed.xml
 /.clj-kondo/.cache
