@@ -59,6 +59,7 @@ def open_file(file_string):
 
 cal = Calendar()
 classes = open_file(sys.argv[1])
+print(classes)
 for c in classes:
     event_parse(c, cal)
 print(cal.to_ical())

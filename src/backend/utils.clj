@@ -1,86 +1,61 @@
 (ns backend.utils
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as jdbc]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as helpers :refer :all]
-            [backend.db :refer [pg-db]]
-            [ring.util.response :as resp]))
+            [backend.db :as db]))
 
 (defonce characters "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 (def file-storage-location "/home/sol/files/")
 
-(defn random-chars
-  [n]
+(defn random-chars [n]
   (->> (repeatedly #(rand-nth characters))
        (take n)
        (reduce str)))
 
-(defn generate-token
-  []
+(defn generate-token []
   (random-chars 30))
 
-(defn unique-id
-  []
+(defn unique-id []
   (let [new-id (random-chars (+ 4 (rand-int 4)))]
-    (if (first (jdbc/query pg-db (-> (select :id)
-                                     (from :shortened)
-                                     (where [:= new-id :id])
-                                     sql/format)))
+    (if (some #(= new-id (:id %)) @db/shortened)
       (unique-id)
       new-id)))
 
-(defn validate-token-return-username
-  [token]
-  (:username (first (jdbc/query pg-db (-> (select :username)
-                                          (from :users)
-                                          (where [:= :token token])
-                                          sql/format)))))
+(defn validate-token-return-username [token]
+  (:username (first (filter #(= token (:token %)) @db/users))))
 
-(defn file-upload
-  [req]
-  (let* [id (unique-id)
-         token (get (req :params) "token")
-         data (str file-storage-location id)]
+(defn file-upload [req]
+  (let* [id       (unique-id)
+         token    (get (req :params) "token")
+         data     (str file-storage-location id)]
     (when-let [username (validate-token-return-username token)]
       (cond
-        (string? (get (req :params) "file")) (spit data (get (req :params) "file"))
-        :else (when (< (:size (get (req :params) "file")) 20000000)
-                (io/copy (:tempfile (get (req :params) "file"))
-                         (io/file data))))
-      (jdbc/execute!
-       pg-db
-       (-> (insert-into :shortened)
-           (columns :id :type :data :username)
-           (values
-            [[id (get (req :params) "type") "" username]])
-           sql/format))
+        (string? (get (req :params) "file"))
+        (spit data (get (req :params) "file"))
+        :else
+        (when (< (:size (get (req :params) "file")) 20000000)
+          (io/copy (:tempfile (get (req :params) "file"))
+                   (io/file data))))
+      (swap! db/shortened conj
+             {:id id :type (get (req :params) "type") :data "" :username username})
+      (db/save-shortened!)
       (str "https://solb.io/" id))))
 
-(defn redirect-upload
-  [req]
-  (let* [id (unique-id)
+(defn redirect-upload [req]
+  (let* [id    (unique-id)
          token (get (req :params) "token")
-         data (get (req :params) "redirect")]
-    (let [username (validate-token-return-username token)]
-      (when username
-        (jdbc/execute! pg-db (-> (insert-into :shortened)
-                                 (columns :id :type :data :username)
-                                 (values
-                                  [[id "redirect" data username]])
-                                 sql/format))
-        (str "https://solb.io/" id)))))
+         data  (get (req :params) "redirect")]
+    (when-let [username (validate-token-return-username token)]
+      (swap! db/shortened conj
+             {:id id :type "redirect" :data data :username username})
+      (db/save-shortened!)
+      (str "https://solb.io/" id))))
 
-(defn return-shortened
-  [id]
-  (let [query-result (first (jdbc/query pg-db (-> (select :type :data :id)
-                                                  (from :shortened)
-                                                  (where [:= :id id])
-                                                  sql/format)))]
-    (if (= (query-result :type) "redirect")
-      {:status 302
-       :headers {"Location" (query-result :data)}
-       :body ""}
-      {:status 200
-       :headers {"Content-Type" (query-result :type)}
-       :body (io/file (str file-storage-location (query-result :id)))})))
+(defn return-shortened [id]
+  (let [entry (first (filter #(= id (:id %)) @db/shortened))]
+    (if (= (:type entry) "redirect")
+      {:status  302
+       :headers {"Location" (:data entry)}
+       :body    ""}
+      {:status  200
+       :headers {"Content-Type" (:type entry)}
+       :body    (io/file (str file-storage-location (:id entry)))})))

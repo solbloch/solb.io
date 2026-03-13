@@ -1,137 +1,117 @@
-function getContentEditable(get, call){
-    // this function is used to get the stuff inside the contenteditable elements, to be used in the form to edit posts
-    document.getElementById(call).value = document.getElementById(get).innerHTML;
-}
+// Quill and DOM are both ready since this script loads last in the body
 
-function getContentEditableAll() {
-    getContentEditable('unhappy','content');
-    getContentEditable('sad','title');
-    getContentEditable('depressed','tags');
-    getContentEditable('rip','forward');
-}
-
-window.onload=function() {
-    var contentedit = document.getElementById('unhappy');
-    contentedit.addEventListener("keydown", insertTabAtCaret);
-    // contentedit.addEventListener("keydown", insertNewLineAtCaret);
-    contentedit.addEventListener("keydown", changeCodeBlock);
-    contentedit.addEventListener("keydown", wrapTidbit);
-    contentedit.addEventListener("keydown", wrapLink);
-    contentedit.addEventListener("keydown", changeH3);
-    contentedit.addEventListener("keydown", changeNormal);
-}
-function insertAfter(newNode, referenceNode) {
-    referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
-}
-function changeParent(newParent){
-    var sel = window.getSelection(),
-        container = sel.anchorNode.parentNode,
-        emptyDiv = document.createElement("div");
-    newParent.innerHTML = container.innerHTML;
-    if (container.classList.contains("content")) {return 0;}
-    container.replaceWith(newParent);
-    var range = document.createRange();
-    var sel = window.getSelection();
-    range.setStart(newParent.childNodes[newParent.childNodes.length - 1],newParent.childNodes[0].length);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    // emptyDiv.appendChild(document.createElement("br"));
-    // insertAfter(emptyDiv, newParent);
-}
-function changeCodeBlock(e){
-    if(e.ctrlKey && e.which == 188){
-        e.preventDefault();
-        var precode = document.createElement("div"),
-            sel = window.getSelection(),
-            container = sel.anchorNode.parentNode;
-        precode.classList.add("precode");
-        changeParent(precode);
+var quill = new Quill('#editor', {
+    theme: 'snow',
+    modules: {
+        toolbar: [
+            [{ header: [2, 3, false] }],
+            ['bold', 'italic'],
+            ['code-block'],
+            ['link'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['blockquote'],
+            ['clean']
+        ]
     }
-}
-function changeH3(e){
-    if(e.ctrlKey && e.which ==  50){
-        e.preventDefault();
-        h3 = document.createElement("h3");
-        changeParent(h3);
-    }
-}
-function changeNormal(e){
-    if(e.ctrlKey && e.which ==  49){
-        e.preventDefault();
+});
 
-        div = document.createElement("div");
-        changeParent(div);
-    }
-}
-function wrapLink(e){
-    if(e.ctrlKey && e.which == 76){
-        e.preventDefault();
+// Load existing post HTML into Quill
+var initial = document.getElementById('initial-content');
+var editorHost = document.getElementById('editor');
+var useRawConvoEditor = false;
+var rawEditor = null;
 
-        var link = prompt("Link?", "https://www.google.com");
-        var sel = window.getSelection();
-
-        var a = document.createElement("a");
-        a.setAttribute('href', link);
-        if (window.getSelection) {
-
-            if (sel.rangeCount) {
-                var range = sel.getRangeAt(0).cloneRange();
-                range.surroundContents(a);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
+if (initial && initial.innerHTML.trim()) {
+    useRawConvoEditor = initial.innerHTML.indexOf('convo-transcript') !== -1;
+    if (useRawConvoEditor) {
+        var toolbar = editorHost.previousElementSibling;
+        if (toolbar && toolbar.classList && toolbar.classList.contains('ql-toolbar')) {
+            toolbar.style.display = 'none';
         }
+        editorHost.style.display = 'none';
+        rawEditor = document.createElement('div');
+        rawEditor.id = 'raw-convo-editor';
+        rawEditor.className = 'raw-convo-editor content';
+        rawEditor.setAttribute('contenteditable', 'true');
+        rawEditor.setAttribute('spellcheck', 'false');
+        rawEditor.innerHTML = initial.innerHTML;
+        editorHost.parentNode.insertBefore(rawEditor, editorHost.nextSibling);
+    } else {
+        quill.root.innerHTML = initial.innerHTML;
     }
 }
-function wrapTidbit(e){
-    if(e.ctrlKey && e.which == 83){
+
+// ── Save state ──────────────────────────────────────────────
+var saveTimer = null;
+
+function setStatus(msg, cls) {
+    var el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.className = 'save-status' + (cls ? ' ' + cls : '');
+}
+
+function collectAll() {
+    document.querySelector('input[name="content"]').value  = useRawConvoEditor && rawEditor ? rawEditor.innerHTML : quill.root.innerHTML;
+    document.querySelector('input[name="title"]').value    = document.getElementById('post-title').innerText.trim();
+    document.querySelector('input[name="tags"]').value     = document.getElementById('post-tags').innerText.trim();
+    document.querySelector('input[name="forward"]').value  = document.getElementById('post-forward').innerText.trim();
+}
+
+function doSave() {
+    setStatus('saving...', 'saving');
+    collectAll();
+    var token = document.querySelector('input[name="__anti-forgery-token"]').value;
+    var id    = document.querySelector('input[name="id"]').value;
+    var formData = new FormData();
+    formData.append('__anti-forgery-token', token);
+    formData.append('id',      id);
+    formData.append('content', document.querySelector('input[name="content"]').value);
+    formData.append('title',   document.querySelector('input[name="title"]').value);
+    formData.append('tags',    document.querySelector('input[name="tags"]').value);
+    formData.append('forward', document.querySelector('input[name="forward"]').value);
+    fetch('/autosave', { method: 'POST', body: formData })
+        .then(function(res) {
+            setStatus(res.ok ? 'saved' : 'save failed!', res.ok ? '' : 'unsaved');
+        })
+        .catch(function() {
+            setStatus('save failed!', 'unsaved');
+        });
+}
+
+function scheduleSave() {
+    setStatus('unsaved', 'unsaved');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 2000);
+}
+
+// ── Public actions wired to toolbar buttons ─────────────────
+function manualSave() {
+    clearTimeout(saveTimer);
+    doSave();
+}
+
+function saveAndReload() {
+    clearTimeout(saveTimer);
+    collectAll();
+    document.getElementById('save-form').submit();
+}
+
+// ── Change listeners ────────────────────────────────────────
+if (useRawConvoEditor && rawEditor) {
+    rawEditor.addEventListener('input', scheduleSave);
+} else {
+    quill.on('text-change', scheduleSave);
+}
+
+['post-title', 'post-tags', 'post-forward'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', scheduleSave);
+});
+
+// Ctrl+S → immediate save
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
-        var sel = window.getSelection();
-        var tidbit = document.createElement("code");
-        tidbit.classList.add("tidbit");
-        if (window.getSelection) {
-            if (sel.rangeCount) {
-                var range = sel.getRangeAt(0).cloneRange();
-                range.surroundContents(tidbit);
-                sel.removeAllRanges();
-                sel.addRange(range);
-            }
-        }
+        clearTimeout(saveTimer);
+        doSave();
     }
-}
-function insertNewLineAtCaret(event){
-    if(event.keyCode === 13){
-        event.preventDefault();
-        var selection = window.getSelection(),
-            range = selection.getRangeAt(0),
-            br = document.createElement('br');
-        range.insertNode(br);
-        range.setStartAfter(br);
-        range.setEndAfter(br);
-    }
-}
-function insertNewTopic(){
-    var selection = window.getSelection(),
-        range = selection.getRangeAt(0),
-        newTopic = document.createTextNode("λλλ"),
-        divver = document.createElement('div');
-    divver.setAttribute('style', 'text-align: center; color: slategrey;');
-    divver.appendChild(newTopic);
-
-
-    range.insertNode(divver);
-    range.setStartAfter(divver);
-    range.setEndAfter(divver);
-}
-function insertTabAtCaret(event){
-    if(event.keyCode === 9){
-        event.preventDefault();
-        var range = window.getSelection().getRangeAt(0);
-
-        var tabNode = document.createTextNode("\u00a0\u00a0\u00a0\u00a0");
-        range.insertNode(tabNode);
-        range.setStartAfter(tabNode);
-        range.setEndAfter(tabNode);
-    }
-}
+});

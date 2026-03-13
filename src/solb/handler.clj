@@ -17,20 +17,28 @@
             [clojure.java.io :as io]))
 
 (defroutes app-routes
-  (GET "/" [] (layout/homepage))
-  (GET "/bio" [] (layout/bio))
+  (GET "/" [:as req] (layout/homepage req))
+  (GET "/bio" [:as req] (layout/bio req))
   (context "/blog" []
-           (GET "/" [] (blog/blog-homepage))
-           (GET "/tags/:tag" [tag] (blog/tag-page tag))
-           (GET "/:entry" [entry :as req] (blog/htmlitize entry))
+           (GET "/" [:as req] (blog/blog-homepage req))
+           (GET "/tags/:tag" [tag :as req] (blog/tag-page req tag))
+           (GET "/:entry" [entry :as req] (blog/htmlitize req entry))
            (GET "/:entry/edit" [entry :as req]
-                (users/sol? req (blog/htmlitize-edit! entry))))
-  (GET "/su-cal" [] (layout/su-cal))
+                (users/sol? req (blog/htmlitize-edit! req entry))))
+  (GET "/su-cal" [:as req] (layout/su-cal req))
   (GET "/su-cal-gen" [:as req] (cal/get-ics-from-req req))
   (POST "/editor" [:as req] (users/sol? req (backend.blog/edit! req)))
+  (POST "/autosave" [:as req] (users/sol? req (backend.blog/autosave! req)))
+  (POST "/delete" [:as req] (users/sol? req (backend.blog/delete! req)))
   (POST "/enlive" [:as req] (users/sol? req (backend.blog/enliven req)))
   (POST "/login" [] users/login-user)
   (GET "/newpost" [:as req] (users/sol? req (blog/new-post)))
+  (GET "/newconvo" [:as req]
+       (users/sol? req
+                  (if-let [new-convo-fn (ns-resolve 'templates.blog 'new-convo)]
+                    (new-convo-fn req)
+                    (blog/new-post))))
+  (POST "/newconvo" [:as req] (users/sol? req (backend.blog/import-convo! req)))
   (GET "/login" [] (login/login-page))
   (GET "/admin" [:as req] (users/sol? req (blog/admin req)))
   (GET "/showtoken" [:as req] (users/show-token req))

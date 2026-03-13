@@ -81,7 +81,7 @@ a:hover {
     color: slategrey;
 }
 .rss {
-    font-size: calc(14px + .3vw);
+    font-size: var(--body-text-size);
     padding-top: 50px;
     text-align: center;
     font-family: "Libre Baskerville";
@@ -163,6 +163,14 @@ header {
     /* background-color: rgb(30,30,30); */
     padding-bottom: 10px;
 }
+    header::after {
+        content: "";
+        display: block;
+        width: 80%;
+        max-width: 1150px;
+        margin: 0 auto;
+        border-bottom: 1px solid rgba(0,0,0,.12);
+    }
 .first {
     justify-content: center;
     width: 80%;
@@ -225,28 +233,68 @@ img.face {
     display: flex;
     flex-wrap: wrap;
 }
-.entry {
-    text-decoration: none;
-    letter-spacing: 1px;
-    font-family: 'Jacques Francois';
-    font-size: calc(16px + .7vw);
-    font-weight: normal;
-    font-style: normal;
-    color: black;
-    height: auto;
-    margin-top: 15px;
+:root {
+    --post-title-size: calc(20px + .45vw);
+    --post-h2-size: calc(18.5px + .45vw);
+    --post-h3-size: calc(16.5px + .32vw);
+    --body-text-size: calc(12.5px + .24vw);
+    --body-line-height: 1.5;
 }
-.entry:hover {
+.entry {
+    padding: 18px 0 20px;
+    border-bottom: 1px solid #e8e8e8;
+}
+.entry-title {
+    display: block;
+    font-family: 'Jacques Francois';
+    font-size: var(--post-title-size);
+    font-weight: normal;
+    color: black;
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+    margin-bottom: 8px;
+}
+.entry-title:hover {
     color: slategrey;
 }
+.entry-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.entry-title-row .entry-title {
+    margin-bottom: 0;
+}
+.entry-readtime {
+    font-family: 'Jacques Francois';
+    font-size: calc(11px + .2vw);
+    color: rgba(0,0,0,.4);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.entry-footer {
+    margin-top: 10px;
+    font-family: 'Jacques Francois';
+    font-size: calc(11px + .2vw);
+    color: rgba(0,0,0,.45);
+}
+.entry-footer a {
+    color: rgba(0,0,0,.45);
+    text-decoration: none;
+    margin-right: 3px;
+}
+.entry-footer a.tag-link {
+    color: #795C9F;
+}
+.entry-footer a:hover { color: slategrey; }
 .tags {
     outline: 0px;
     display: block;
     float: left;
     color: #795C9F;
-    /* width: 80%; */
-    /* text-align: right; */
-    /* margin-top: -6px; */
 }
 .tags a {
     display: inline-block;
@@ -273,6 +321,38 @@ img.face {
 .adminstuff a:hover {
     color: slategrey;
 }
+.admin-entry-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+}
+.admin-entry-header .entry-title {
+    margin-bottom: 0;
+}
+.admin-entry-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+.admin-entry-actions {
+    float: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+.admin-entry-actions form {
+    display: inline;
+}
+.admin-entry-meta .date {
+    float: none;
+    margin: 0;
+}
 .blog input {
     display: block;
     margin: auto;
@@ -286,15 +366,60 @@ textarea {
 .blogonly {
     margin: auto;
     width: 70%;
-    max-width: 1150px;
+    max-width: 720px;
     display: flex;
     display: -webkit-box;
     display: -moz-box;
     display: -ms-flexbox;
-    display: -webkit-flex;x;
+    display: -webkit-flex;
     justify-content: center;
     flex-direction: column;
 }
+.snippet {
+    font-family: "Libre Baskerville";
+    font-size: var(--body-text-size);
+    color: rgba(0,0,0,.8);
+    line-height: var(--body-line-height);
+}
+.snippet-link {
+    background: rgba(0,0,0,.035);
+    border-radius: 5px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color .15s ease, box-shadow .15s ease;
+}
+.snippet-link:hover {
+    background: rgba(0,0,0,.055);
+}
+.snippet-link:focus {
+    outline: none;
+    background: rgba(0,0,0,.055);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.08);
+}
+.snippet p {
+    margin: 0 0 0.6em;
+}
+.snippet h2,
+.snippet h3 {
+    font-family: "Jacques Francois";
+    font-weight: normal;
+    color: black;
+    letter-spacing: 0;
+    line-height: 1.25;
+}
+.snippet h2 {
+    font-size: var(--post-h2-size);
+    margin: 0.7em 0 0.25em;
+}
+.snippet h3 {
+    font-size: var(--post-h3-size);
+    margin: 0.6em 0 0.2em;
+}
+.snippet p:last-child {
+    margin-bottom: 0;
+}
+.snippet a    { color: rgb(0, 153, 255); }
+.snippet code { font-family: "Consolas", monospace; background: #eee; padding: 1px 4px; border-radius: 2px; font-size: .9em; }
 .bloglist {
     margin: auto;
     width: 50%;
@@ -334,26 +459,140 @@ textarea {
     display: -webkit-flex;
     display: flex;
     flex-direction: column;
-    width: 65%;
-    max-width: 1100px;
+    width: 70%;
+    max-width: 720px;
     margin: auto;
 }
 .content {
-    line-height: 2;
-    outline: 0px;
+    font-family: "Libre Baskerville";
+    font-weight: normal;
+    color: black;
+    line-height: var(--body-line-height);
     margin-top: 20px;
-    font-size: calc(13px + .3vw);
-    /* white-space: pre; */
-    white-space: pre-wrap;      /* CSS3 */
-    white-space: -moz-pre-wrap; /* Firefox */
-    white-space: -pre-wrap;     /* Opera <7 */
-    white-space: -o-pre-wrap;   /* Opera 7 */
-    word-wrap: break-word;      /* IE */
+    font-size: var(--body-text-size);
+    word-wrap: break-word;
 }
-.content a {
-    /* color: skyblue; */
-    color: rgb(0, 153, 255);
-    text-decoration: underline;
+.content p    { margin: 0 0 0.8em; }
+.content h2   {
+    font-family: "Jacques Francois";
+    font-weight: normal;
+    font-size: var(--post-h2-size);
+    margin: 1em 0 0.3em;
+    color: black;
+    letter-spacing: 0;
+    line-height: 1.25;
+}
+.content h3   {
+    font-family: "Jacques Francois";
+    font-weight: normal;
+    font-size: var(--post-h3-size);
+    margin: 0.8em 0 0.2em;
+    color: black;
+    line-height: 1.25;
+}
+.content pre  {
+    font-family: "Consolas", monospace;
+    background: #f0f0f0;
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    overflow-x: auto;
+    white-space: pre;
+}
+.content code { font-family: "Consolas", monospace; background: #eee; padding: 1px 4px; border-radius: 2px; font-size: .9em; }
+.content pre code { background: none; padding: 0; }
+.content a    { color: rgb(0, 153, 255); text-decoration: underline; }
+.content blockquote {
+    margin: 0 0 0.8em;
+    padding: 10px 14px;
+    border-left: 3px solid #c7c7c7;
+    background: rgba(0,0,0,.03);
+    color: rgba(0,0,0,.7);
+    display: flow-root;
+}
+.content blockquote p:first-child {
+    margin-top: 0;
+}
+.content blockquote p:last-child {
+    margin-bottom: 0;
+}
+.content ol, .content ul { padding-left: 1.5em; margin: 0 0 0.8em; }
+.content li   { margin: 0.2em 0; }
+.content .convo-transcript,
+.ql-editor .convo-transcript,
+.snippet .convo-transcript {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.snippet .convo-transcript {
+    max-height: 260px;
+    overflow: hidden;
+}
+.content .convo-message,
+.ql-editor .convo-message,
+.snippet .convo-message {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    gap: 4px;
+}
+.content .convo-human,
+.ql-editor .convo-human,
+.snippet .convo-human {
+    align-self: flex-end;
+}
+.content .convo-model,
+.ql-editor .convo-model,
+.snippet .convo-model {
+    align-self: flex-start;
+}
+.content .convo-speaker,
+.ql-editor .convo-speaker,
+.snippet .convo-speaker {
+    font-family: "Jacques Francois";
+    font-size: 12px;
+    color: rgba(0,0,0,.55);
+}
+.content .convo-human .convo-speaker,
+.ql-editor .convo-human .convo-speaker,
+.snippet .convo-human .convo-speaker {
+    text-align: right;
+}
+.content .convo-bubble,
+.ql-editor .convo-bubble,
+.snippet .convo-bubble {
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+.content .convo-model .convo-bubble,
+.ql-editor .convo-model .convo-bubble,
+.snippet .convo-model .convo-bubble {
+    background: rgba(0,0,0,.05);
+}
+.content .convo-human .convo-bubble,
+.ql-editor .convo-human .convo-bubble,
+.snippet .convo-human .convo-bubble {
+    background: rgba(0, 153, 255, .12);
+}
+.content .convo-bubble p:last-child,
+.ql-editor .convo-bubble p:last-child,
+.snippet .convo-bubble p:last-child,
+.content .convo-bubble ul:last-child,
+.ql-editor .convo-bubble ul:last-child,
+.snippet .convo-bubble ul:last-child,
+.content .convo-bubble ol:last-child,
+.ql-editor .convo-bubble ol:last-child,
+.snippet .convo-bubble ol:last-child,
+.content .convo-bubble pre:last-child,
+.ql-editor .convo-bubble pre:last-child,
+.snippet .convo-bubble pre:last-child,
+.content .convo-bubble blockquote:last-child,
+.ql-editor .convo-bubble blockquote:last-child,
+.snippet .convo-bubble blockquote:last-child {
+    margin-bottom: 0;
 }
 .datetagsflex {
     display: flex;
@@ -379,7 +618,8 @@ textarea {
     /* padding-top: 20px; */
     padding-left: 0;
     letter-spacing: 0;
-    font-size: calc(20px + 1.2vw);
+    font-size: var(--post-title-size);
+    line-height: 1.2;
 }
 h3 {
     font-family: "Jacques Francois";
@@ -388,11 +628,6 @@ h3 {
     margin: 0;
     letter-spacing: 0;
     font-size: calc(18px + .5vw);
-}
-.content {
-    font-family: "Libre Baskerville";
-    font-weight: normal;
-    color: black;
 }
 h2 {
     outline: 0px;
@@ -508,7 +743,7 @@ h2 {
     position: block;
 }
 .bio {
-    font-size: 18px;
+    font-size: var(--body-text-size);
     justify-content: center;
     display: -webkit-box;
     display: -moz-box;
@@ -519,6 +754,7 @@ h2 {
     width: 70%;
     max-width: 1200px;
     margin: auto;
+    line-height: var(--body-line-height);
 }
 .bio h2 {
     font-family: 'Jacques Francois';
@@ -586,7 +822,143 @@ h2 {
     /* } */
 }
 @media only screen and (min-width: 900px) {
-    .entry {
-        font-size: 30px;
+    .entry-title {
+        font-size: 24px;
     }
+}
+
+/* ── Editor toolbar ───────────────────────────────────────── */
+.editor-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: white;
+    border-bottom: 1px solid #e8e8e8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    width: 70%;
+    max-width: 720px;
+    margin: 0 auto;
+}
+.save-status {
+    font-family: "Jacques Francois";
+    font-size: 13px;
+    color: #aaa;
+    margin-right: auto;
+}
+.save-status.unsaved { color: #c06; }
+.save-status.saving  { color: #888; }
+    .footer::before {
+        content: "";
+        display: block;
+        width: 80%;
+        max-width: 1150px;
+        margin: 0 auto 14px;
+        border-top: 1px solid rgba(0,0,0,.12);
+    }
+.toolbar-save, .toolbar-reload {
+    font-family: "Jacques Francois";
+    font-size: 13px;
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 3px 10px;
+    cursor: pointer;
+    color: #444;
+}
+.toolbar-save:hover, .toolbar-reload:hover {
+    background: #f5f5f5;
+}
+
+/* ── Edit-mode field cues ─────────────────────────────────── */
+.edit-mode [contenteditable] {
+    outline: none;
+    border-radius: 2px;
+    transition: background 0.15s;
+}
+.edit-mode [contenteditable]:hover  { background: rgba(0,80,255,.03); }
+.edit-mode [contenteditable]:focus  { background: rgba(0,80,255,.05); }
+
+/* ── Quill editor overrides ───────────────────────────────── */
+.ql-toolbar.ql-snow {
+    border: 1px solid #e8e8e8;
+    border-radius: 3px 3px 0 0;
+    font-family: "Jacques Francois";
+    margin-top: 20px;
+}
+.ql-container.ql-snow {
+    border: 1px solid #e8e8e8;
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    font-family: "Libre Baskerville";
+    font-size: var(--body-text-size);
+    line-height: var(--body-line-height);
+    color: black;
+    min-height: 400px;
+}
+.ql-editor {
+    padding: 16px 0;
+    min-height: 400px;
+}
+.ql-editor p   { margin: 0 0 0.8em; }
+.ql-editor h2  {
+    font-family: "Jacques Francois";
+    font-weight: normal;
+    font-size: var(--post-h2-size);
+    margin: 1em 0 0.3em;
+    color: black;
+    letter-spacing: 0;
+    line-height: 1.25;
+}
+.ql-editor h3  {
+    font-family: "Jacques Francois";
+    font-weight: normal;
+    font-size: var(--post-h3-size);
+    margin: 0.8em 0 0.2em;
+    color: black;
+    line-height: 1.25;
+}
+.ql-editor pre.ql-syntax {
+    font-family: "Consolas", monospace;
+    background: #f0f0f0;
+    border-radius: 3px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    overflow-x: auto;
+}
+.ql-editor blockquote {
+    margin: 0 0 0.8em;
+    padding: 10px 14px;
+    border-left: 3px solid #c7c7c7;
+    background: rgba(0,0,0,.03);
+    color: rgba(0,0,0,.7);
+}
+.ql-editor blockquote p:first-child {
+    margin-top: 0;
+}
+.ql-editor blockquote p:last-child {
+    margin-bottom: 0;
+}
+.ql-editor code {
+    font-family: "Consolas", monospace;
+    background: #eee;
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: .9em;
+}
+.ql-editor a { color: rgb(0, 153, 255); }
+
+.raw-convo-editor {
+    border: 1px solid #e8e8e8;
+    border-radius: 3px;
+    min-height: 400px;
+    padding: 16px 0;
+    outline: none;
+}
+.raw-convo-editor:focus {
+    border-color: #d6d6d6;
 }
